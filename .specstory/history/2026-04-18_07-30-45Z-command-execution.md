@@ -1275,3 +1275,220 @@ git config user.email "you@example.com"
 ```
 
 then retry commit + push.
+
+---
+
+_**User**_
+
+PS D:\City samadhan\CitySamadhan(Final)> git push -u origin main
+remote: Invalid username or token. Password authentication is not supported for Git operations.
+fatal: Authentication failed for 'https://github.com/aksharma02/CitySamadhan.git/'
+
+---
+
+_**Agent (default)**_
+
+Git is working now; this is only an **authentication** issue with GitHub over HTTPS.
+
+### Why this happened
+GitHub no longer accepts account password for `git push` on HTTPS.  
+You must use either:
+- Personal Access Token (PAT), or
+- GitHub CLI login, or
+- SSH key auth
+
+### Fastest fix (recommended): GitHub CLI
+Run:
+
+```powershell
+gh auth login
+```
+
+Choose:
+- `GitHub.com`
+- `HTTPS`
+- `Login with a web browser`
+
+Then retry:
+
+```powershell
+git push -u origin main
+```
+
+### Alternative: Use PAT with HTTPS
+1. Create PAT on GitHub (scope: `repo`)
+2. Push again:
+   ```powershell
+   git push -u origin main
+   ```
+3. When prompted:
+   - Username: your GitHub username
+   - Password: paste PAT (not your GitHub password)
+
+### Optional (best long-term): switch remote to SSH
+If you already have SSH keys set up:
+
+```powershell
+git remote set-url origin git@github.com:aksharma02/CitySamadhan.git
+git push -u origin main
+```
+
+If you want, I can give you a step-by-step for whichever method you prefer (CLI, PAT, or SSH).
+
+---
+
+_**User**_
+
+PS D:\City samadhan\CitySamadhan(Final)> git push -u origin main
+To https://github.com/aksharma02/CitySamadhan.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/aksharma02/CitySamadhan.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+
+---
+
+_**Agent (default)**_
+
+Remote `main` already has commits, so your local history must be synced first. I’ll check divergence and give the exact safest command to proceed without losing work.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: git fetch origin</summary>
+
+```bash
+git fetch origin
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: git log --oneline --decorate --graph --all -n 15</summary>
+
+```bash
+git log --oneline --decorate --graph --all -n 15
+```
+
+```
+* acea253 (HEAD -&gt; main) Initial commit
+* a404cfb (origin/main) Initial commit
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: git status -sb</summary>
+
+```bash
+git status -sb
+```
+
+```
+## main
+ M .specstory/history/2026-04-18_07-30-45Z-command-execution.md
+ M .specstory/statistics.json
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+You’re very close — this is now a **history mismatch** issue (not auth).
+
+Your local and remote both have separate “Initial commit” roots:
+
+- local: `acea253`
+- remote: `a404cfb`
+
+So Git rejects push because they’re unrelated histories.
+
+Use this once:
+
+```powershell
+git pull origin main --allow-unrelated-histories
+```
+
+If it opens a merge editor, save and close.  
+Then push again:
+
+```powershell
+git push -u origin main
+```
+
+If merge conflicts appear, resolve them, then:
+
+```powershell
+git add .
+git commit
+git push -u origin main
+```
+
+If you want, I can also give a “keep only my local version” variant, but the above is the safest default (keeps both histories).
+
+---
+
+_**User**_
+
+PS D:\City samadhan\CitySamadhan(Final)> git status -sb                                  
+## main
+ M .specstory/history/2026-04-18_07-30-45Z-command-execution.md
+ M .specstory/statistics.json
+
+---
+
+_**Agent (default)**_
+
+This means your working tree isn’t clean right now — only `.specstory` files are modified.
+
+Before pulling/merging and pushing, choose one:
+
+- **Keep these changes** (if you want them in repo):
+  ```powershell
+  git add .specstory
+  git commit -m "Update specstory metadata"
+  ```
+
+- **Don’t include these changes** (most common for local IDE metadata):
+  ```powershell
+  git stash
+  ```
+
+Then continue with the sync step from earlier:
+
+```powershell
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+```
+
+If you used `git stash`, bring them back after push (optional):
+
+```powershell
+git stash pop
+```
+
+If you want, I can help you permanently ignore `.specstory` so this doesn’t keep appearing.
