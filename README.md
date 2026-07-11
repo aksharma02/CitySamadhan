@@ -192,33 +192,6 @@ Visit:
 http://127.0.0.1:5000
 ```
 
----
-
-## 📸 Screenshots
-
-### Registration
-
-_Add Screenshot_
-
-### Login
-
-_Add Screenshot_
-
-### Dashboard
-
-_Add Screenshot_
-
-### Submit Complaint
-
-_Add Screenshot_
-
-### Complaint Details
-
-_Add Screenshot_
-
-### Notifications
-
-_Add Screenshot_
 
 ---
 
