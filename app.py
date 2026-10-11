@@ -193,15 +193,22 @@ with app.app_context():
 def inject_notifications():
     if session.get('logged_in'):
         user_id = session.get('user_id')
+        user = User.query.get(user_id)
         unread_count = Notification.query.filter_by(user_id=user_id, read=False).count()
         recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.timestamp.desc()).limit(5).all()
         return {
+            'current_user': user,
             'unread_notifications_count': unread_count,
-            'recent_notifications': recent_notifications
+            'recent_notifications': recent_notifications,
+            'all_departments': list(DEPARTMENT_INFO.keys()),
+            'indian_states': list(INDIAN_CITIES['states'].keys())
         }
     return {
+        'current_user': None,
         'unread_notifications_count': 0,
-        'recent_notifications': []
+        'recent_notifications': [],
+        'all_departments': list(DEPARTMENT_INFO.keys()),
+        'indian_states': list(INDIAN_CITIES['states'].keys())
     }
 
 # Helper Functions
@@ -284,20 +291,26 @@ def login_required(f):
 
 @app.route('/')
 def home():
+    if session.get('logged_in'):
+        return redirect(url_for('all_complaints'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if session.get('logged_in'):
+        return redirect(url_for('all_complaints'))
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
         user = User.query.filter_by(email=email, password=password).first()
         if user:
             session['user_id'] = user.id
+            session['user_name'] = user.name
+            session['user_city'] = user.city
             session['logged_in'] = True  # Set the logged_in flag
-            flash('Logged in successfully!')
-            return redirect(url_for('dashboard'))
-        flash('Invalid credentials!')
+            flash('Logged in successfully!', 'success')
+            return redirect(url_for('all_complaints'))
+        flash('Invalid credentials!', 'danger')
     return render_template('login.html')
 
 @app.route('/verify_otp', methods=['GET', 'POST'])
@@ -397,6 +410,49 @@ def report_complaint(complaint_id):
     # Notify moderators (you can implement this later)
     return jsonify({'message': 'Report submitted successfully'})
 
+@app.route('/repost_complaint/<int:complaint_id>', methods=['POST'])
+@login_required
+def repost_complaint(complaint_id):
+    original = Complaint.query.get_or_404(complaint_id)
+    current_user_id = session['user_id']
+
+    # Repost always attaches to the root complaint thread.
+    thread_parent_id = original.parent_complaint_id or original.id
+
+    repost = Complaint(
+        title=original.title,
+        description=original.description,
+        location=original.location,
+        state=original.state,
+        city=original.city,
+        department=original.department,
+        status='Reported',
+        user_id=current_user_id,
+        parent_complaint_id=thread_parent_id,
+        photo=original.photo
+    )
+
+    root_complaint = Complaint.query.get(thread_parent_id)
+    if root_complaint:
+        root_complaint.thread_count += 1
+
+    db.session.add(repost)
+    db.session.commit()
+
+    if original.user_id != current_user_id:
+        send_notification(
+            original.user_id,
+            "Your complaint was reposted",
+            f"'{original.title}' was reposted by another user.",
+            "thread_update",
+            original.id
+        )
+
+    return jsonify({
+        'message': 'Complaint reposted successfully',
+        'repost_id': repost.id
+    })
+
 @app.route('/submit_complaint', methods=['GET', 'POST'])
 @login_required
 def submit_complaint():
@@ -429,9 +485,11 @@ def submit_complaint():
             user_id=session['user_id']
         )
         
+        from_feed = request.form.get('from_feed')
+        
         # Handle photo upload
-        if photo:
-            filename = secure_filename(photo.filename)
+        if photo and photo.filename:
+            filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{photo.filename}")
             photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             complaint.photo = filename
             
@@ -442,11 +500,17 @@ def submit_complaint():
             parent_complaint.thread_count += 1
             db.session.add(complaint)
             db.session.commit()
+            if from_feed:
+                flash("Your complaint was linked to an active civic thread in this location!", "info")
+                return redirect(url_for('all_complaints'))
             return redirect(url_for('view_complaint', complaint_id=parent_complaint.id))
         
         # If no similar complaints, create a new thread
         db.session.add(complaint)
         db.session.commit()
+        if from_feed:
+            flash("Civic complaint posted to the feed successfully!", "success")
+            return redirect(url_for('all_complaints'))
         return redirect(url_for('view_complaint', complaint_id=complaint.id))
         
     return render_template('submit_complaint.html', states=INDIAN_CITIES['states'].keys())
@@ -651,15 +715,34 @@ def all_complaints():
     
     # Get filter parameters
     page = request.args.get('page', 1, type=int)
-    per_page = 12  # Number of complaints per page
+    per_page = 15  # Number of complaints per page
     state = request.args.get('state', '')
     city = request.args.get('city', '')
     department = request.args.get('department', '')
     status = request.args.get('status', '')
     sort = request.args.get('sort', 'newest')
+    search_query = request.args.get('q', '').strip()
+    feed_tab = request.args.get('tab', 'all')
+    
+    # Handle quick tabs
+    user_id = session.get('user_id')
+    user = User.query.get(user_id) if user_id else None
+    if feed_tab == 'my_city' and user and user.city:
+        city = user.city
+    elif feed_tab == 'trending':
+        sort = 'most_upvoted'
     
     # Build query
     query = Complaint.query
+    
+    # Apply keyword search
+    if search_query:
+        query = query.filter(
+            (Complaint.title.ilike(f"%{search_query}%")) |
+            (Complaint.description.ilike(f"%{search_query}%")) |
+            (Complaint.location.ilike(f"%{search_query}%")) |
+            (Complaint.department.ilike(f"%{search_query}%"))
+        )
     
     # Apply filters
     if state:
@@ -681,7 +764,7 @@ def all_complaints():
     
     # Get total count and paginate
     total = query.count()
-    total_pages = (total + per_page - 1) // per_page
+    total_pages = max(1, (total + per_page - 1) // per_page)
     complaints = query.paginate(page=page, per_page=per_page, error_out=False).items
     
     return render_template(
@@ -689,6 +772,7 @@ def all_complaints():
         complaints=complaints,
         page=page,
         total_pages=total_pages,
+        total_count=total,
         states=INDIAN_CITIES['states'].keys(),
         cities=INDIAN_CITIES['states'],
         departments=DEPARTMENT_INFO.keys(),
@@ -696,7 +780,9 @@ def all_complaints():
         selected_city=city,
         selected_department=department,
         selected_status=status,
-        selected_sort=sort
+        selected_sort=sort,
+        search_query=search_query,
+        feed_tab=feed_tab
     )
 
 @app.route('/get_cities/<state>')

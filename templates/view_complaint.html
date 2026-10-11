@@ -1,248 +1,261 @@
 {% extends "base.html" %}
 
-{% block title %}{{ complaint.title }} - City Samadhan{% endblock %}
+{% block title %}Case File #{{ complaint.id }}: {{ complaint.title }} - City Samadhan{% endblock %}
 
 {% block content %}
-<div class="complaint-details-container">
-    <!-- Complaint Header -->
-    <div class="complaint-header">
-        <div class="complaint-title-section">
-            <div class="complaint-meta">
-                <span class="complaint-id">#{{ complaint.id }}</span>
-                <span class="status-badge {{ complaint.status.lower() }}">
-                    <i class="fas fa-circle"></i> {{ complaint.status }}
-                </span>
-                <span class="timestamp">
-                    <i class="fas fa-clock"></i> {{ complaint.timestamp.strftime('%Y-%m-%d %H:%M') }}
-                </span>
-            </div>
-            <h1>{{ complaint.title }}</h1>
-            <div class="complaint-location">
-                <i class="fas fa-map-marker-alt"></i>
-                {{ complaint.location }}, {{ complaint.city }}, {{ complaint.state }}
+<div class="x-thread-container">
+    
+    <!-- TOP STICKY HEADER -->
+    <div class="x-sticky-header">
+        <div class="d-flex align-items-center gap-3 px-3 py-2">
+            <a href="{{ url_for('all_complaints') }}" class="x-back-btn" title="Back to Feed">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h5 class="mb-0 fw-bold">Case File #{{ complaint.id }}</h5>
+                <span class="text-muted small">{{ complaint.department }} · {{ complaint.city }}</span>
             </div>
         </div>
-        <div class="complaint-actions">
-            <div class="vote-buttons">
-                <button onclick="vote({{ complaint.id }}, 'upvote')" class="btn btn-vote" id="upvote-btn">
-                    <i class="fas fa-thumbs-up"></i>
-                    <span id="upvote-count">{{ complaint.upvotes }}</span>
-                </button>
-                <button onclick="vote({{ complaint.id }}, 'downvote')" class="btn btn-vote" id="downvote-btn">
-                    <i class="fas fa-thumbs-down"></i>
-                    <span id="downvote-count">{{ complaint.downvotes }}</span>
-                </button>
+    </div>
+
+    <!-- MAIN COMPLAINT POST (PRIMARY TWEET) -->
+    <article class="x-thread-main-card px-3 pt-3 pb-3 border-bottom">
+        
+        <!-- Author Row -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex gap-3 align-items-center">
+                <div class="x-avatar x-avatar-lg">
+                    {{ user.name[0]|upper if user and user.name else 'C' }}
+                </div>
+                <div>
+                    <div class="fw-bold d-flex align-items-center gap-1 fs-6">
+                        {{ user.name if user else 'Verified Citizen' }}
+                        <i class="fa-solid fa-circle-check text-primary verified-tick" title="Verified Citizen"></i>
+                    </div>
+                    <div class="text-muted small">@{{ (complaint.city|lower|replace(' ', '_')) }}_citizen</div>
+                </div>
             </div>
-            {% if session.get('logged_in') and session.get('user_id') == complaint.user_id %}
-            <button onclick="reportComplaint({{ complaint.id }})" class="btn btn-report">
-                <i class="fas fa-flag"></i> Report
+
+            <!-- Status Pill -->
+            <div>
+                {% set st = complaint.status|lower %}
+                {% if 'resolved' in st %}
+                    <span class="x-status-pill x-status-resolved"><i class="fa-solid fa-circle-check me-1"></i>Resolved</span>
+                {% elif 'process' in st or 'progress' in st %}
+                    <span class="x-status-pill x-status-progress"><i class="fa-solid fa-gear fa-spin me-1"></i>In Process</span>
+                {% else %}
+                    <span class="x-status-pill x-status-reported"><i class="fa-solid fa-clock me-1"></i>Reported</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Department & Location Badges -->
+        <div class="x-tweet-chips-row mb-3">
+            <span class="x-chip x-chip-dept">
+                <i class="fa-solid fa-building-columns me-1"></i> {{ complaint.department }}
+            </span>
+            <span class="x-chip x-chip-loc">
+                <i class="fa-solid fa-location-dot me-1"></i> {{ complaint.location }}, {{ complaint.city }}, {{ complaint.state }}
+            </span>
+        </div>
+
+        <!-- Headline & Description -->
+        <h4 class="fw-bold mb-2">{{ complaint.title }}</h4>
+        <p class="x-thread-desc-text fs-6 lh-base mb-3">{{ complaint.description }}</p>
+
+        <!-- Attached Photo Evidence -->
+        {% if complaint.photo %}
+        <div class="x-thread-media-wrap mb-3">
+            <a href="{{ url_for('static', filename='uploads/' + complaint.photo) }}" target="_blank">
+                <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Issue Evidence" class="x-tweet-img w-100 rounded-4 shadow-sm">
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Timestamp & Details Meta -->
+        <div class="py-2 border-top border-bottom text-muted small d-flex gap-2 align-items-center">
+            <span><i class="fa-regular fa-clock me-1"></i> {{ complaint.timestamp.strftime('%I:%M %p · %b %d, %Y') }}</span>
+            <span>·</span>
+            <span>Civic Portal Direct Registration</span>
+        </div>
+
+        <!-- Counters Bar -->
+        <div class="py-2 border-bottom d-flex gap-4 small">
+            <div><strong>{{ complaint.thread_count if complaint.thread_count else 0 }}</strong> <span class="text-muted">Reposts</span></div>
+            <div><strong id="thread-upvotes-count">{{ complaint.upvotes }}</strong> <span class="text-muted">Endorsements</span></div>
+            <div><strong id="thread-downvotes-count">{{ complaint.downvotes }}</strong> <span class="text-muted">Downvotes</span></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="x-tweet-action-bar py-2 border-bottom">
+            <button type="button" onclick="vote({{ complaint.id }}, 'upvote')" class="x-action-btn x-action-upvote" title="Endorse">
+                <div class="x-action-icon-wrap"><i class="fa-regular fa-heart"></i></div>
+            </button>
+            <button type="button" onclick="vote({{ complaint.id }}, 'downvote')" class="x-action-btn x-action-downvote" title="Downvote">
+                <div class="x-action-icon-wrap"><i class="fa-regular fa-thumbs-down"></i></div>
+            </button>
+            <button type="button" onclick="shareComplaint({{ complaint.id }}, '{{ complaint.title|replace('\'', '\\\'') }}')" class="x-action-btn x-action-share" title="Share link">
+                <div class="x-action-icon-wrap"><i class="fa-regular fa-share-from-square"></i></div>
+            </button>
+            {% if session.get('logged_in') and session.get('user_id') != complaint.user_id %}
+            <button type="button" onclick="reportComplaint({{ complaint.id }})" class="x-action-btn ms-auto text-muted" title="Report inaccuracy">
+                <div class="x-action-icon-wrap"><i class="fa-regular fa-flag"></i></div>
             </button>
             {% endif %}
         </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="complaint-content">
-        <div class="complaint-description">
-            <h2>Description</h2>
-            <p>{{ complaint.description }}</p>
-        </div>
+    </article>
 
-        {% if complaint.photo %}
-        <div class="complaint-photo">
-            <h2>Photo Evidence</h2>
-            <div class="photo-container">
-                <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Complaint Photo">
-                <div class="photo-actions">
-                    <button onclick="zoomPhoto()" class="btn btn-icon">
-                        <i class="fas fa-search-plus"></i>
-                    </button>
-                    <a href="{{ url_for('static', filename='uploads/' + complaint.photo) }}" target="_blank" class="btn btn-icon">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
+    <!-- OFFICIAL AUTHORITY RESPONSES -->
+    <div class="x-authority-section px-3 py-3 border-bottom bg-light-subtle">
+        <h6 class="fw-bold mb-3 d-flex align-items-center gap-2">
+            <i class="fa-solid fa-building-shield text-primary"></i>
+            Official Department Action & Response
+        </h6>
+
+        {% if responses %}
+            {% for response in responses %}
+            <div class="x-official-card mb-3 p-3 bg-white border rounded-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="x-avatar x-avatar-sm bg-primary text-white">
+                            <i class="fa-solid fa-landmark"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold small">{{ response.department_name }}</div>
+                            {% if response.officer_name %}
+                            <small class="text-muted">Officer: {{ response.officer_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ response.timestamp.strftime('%b %d, %I:%M %p') }}</small>
+                </div>
+                <p class="mb-2 small lh-base">{{ response.response_text }}</p>
+                {% if response.estimated_completion_date %}
+                <div class="badge bg-info-subtle text-info border">
+                    <i class="fa-regular fa-calendar-check me-1"></i> Estimated Completion: {{ response.estimated_completion_date.strftime('%Y-%m-%d') }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="p-3 bg-white border rounded-4 text-center">
+                <div class="text-muted small">
+                    <i class="fa-solid fa-hourglass-half me-1 text-warning"></i>
+                    Awaiting official response. Issues receiving <strong>5+ citizen upvotes</strong> trigger automatic direct email dispatch to the zonal grievance desk.
                 </div>
             </div>
-        </div>
         {% endif %}
+    </div>
 
-        <div class="complaint-department">
-            <h2>Department Information</h2>
-            <div class="department-card">
-                <div class="department-header">
-                    <i class="fas fa-building"></i>
-                    <h3>{{ complaint.department }}</h3>
+    <!-- THREAD REPLIES / LINKED REPORTS -->
+    <div class="x-thread-replies px-3 py-3">
+        <h6 class="fw-bold mb-3">Community Thread & Similar Reports ({{ replies|length }})</h6>
+
+        {% if replies %}
+            {% for reply in replies %}
+            <div class="x-tweet-card py-2 border-bottom" data-complaint-id="{{ reply.id }}">
+                <div class="x-tweet-left">
+                    <div class="x-avatar x-avatar-sm">
+                        {{ reply.author.name[0]|upper if reply.author and reply.author.name else 'C' }}
+                    </div>
                 </div>
-                <div class="department-contact">
-                    {% if department_contact %}
-                    <div class="contact-item">
-                        <i class="fas fa-phone"></i>
-                        <span>{{ department_contact.toll_free_number }}</span>
+                <div class="x-tweet-right">
+                    <div class="x-tweet-header">
+                        <div class="x-tweet-author-info">
+                            <span class="x-author-name">{{ reply.author.name if reply.author else 'Citizen' }}</span>
+                            <span class="x-author-handle">#TICKET-{{ reply.id }}</span>
+                            <span class="x-tweet-dot">·</span>
+                            <span class="x-tweet-time">{{ reply.timestamp.strftime('%b %d') }}</span>
+                        </div>
                     </div>
-                    <div class="contact-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>{{ department_contact.office_address }}</span>
+                    <div class="x-tweet-content">
+                        <h6 class="fw-bold mb-1">{{ reply.title }}</h6>
+                        <p class="x-tweet-text small mb-1">{{ reply.description }}</p>
                     </div>
-                    {% else %}
-                    <p class="no-contact">Contact information not available</p>
+                    {% if reply.photo %}
+                    <div class="mt-2">
+                        <img src="{{ url_for('static', filename='uploads/' + reply.photo) }}" alt="Photo" class="rounded-3" style="max-height: 180px;">
+                    </div>
                     {% endif %}
                 </div>
             </div>
-        </div>
-
-        <!-- Authority Responses -->
-        <div class="responses-section">
-            <h2>Department Responses</h2>
-            {% if responses %}
-            <div class="responses-list">
-                {% for response in responses %}
-                <div class="response-card">
-                    <div class="response-header">
-                        <div class="response-meta">
-                            <span class="department-name">{{ response.department_name }}</span>
-                            {% if response.officer_name %}
-                            <span class="officer-name">by {{ response.officer_name }}</span>
-                            {% endif %}
-                        </div>
-                        <span class="response-date">{{ response.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
-                    </div>
-                    <div class="response-content">
-                        <p>{{ response.response_text }}</p>
-                        {% if response.status_update %}
-                        <div class="status-update">
-                            <i class="fas fa-info-circle"></i>
-                            Status updated to: <span class="status-badge {{ response.status_update.lower() }}">{{ response.status_update }}</span>
-                        </div>
-                        {% endif %}
-                        {% if response.estimated_completion_date %}
-                        <div class="completion-date">
-                            <i class="fas fa-calendar-check"></i>
-                            Estimated completion: {{ response.estimated_completion_date.strftime('%Y-%m-%d') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="no-responses">
-                <i class="fas fa-comments"></i>
-                <p>No responses yet from the department</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Similar Complaints -->
-        {% if related_complaints %}
-        <div class="related-complaints">
-            <h2>Similar Complaints</h2>
-            <div class="related-complaints-grid">
-                {% for related in related_complaints %}
-                <div class="related-complaint-card">
-                    <div class="related-complaint-header">
-                        <span class="related-id">#{{ related.id }}</span>
-                        <span class="status-badge {{ related.status.lower() }}">{{ related.status }}</span>
-                    </div>
-                    <h3>{{ related.title }}</h3>
-                    <p>{{ related.description[:100] }}...</p>
-                    <div class="related-complaint-meta">
-                        <span><i class="fas fa-calendar"></i> {{ related.timestamp.strftime('%Y-%m-%d') }}</span>
-                        <span><i class="fas fa-map-marker-alt"></i> {{ related.location }}</span>
-                    </div>
-                    <a href="{{ url_for('view_complaint', complaint_id=related.id) }}" class="btn btn-secondary">
-                        View Details
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small text-center my-3">No follow-up replies yet. Reposting this grievance connects nearby residents.</p>
         {% endif %}
     </div>
+
 </div>
 
-<!-- Photo Zoom Modal -->
-<div id="photo-modal" class="modal">
-    <span class="close-modal">&times;</span>
-    <img id="zoomed-photo" src="" alt="Zoomed Photo">
+<!-- TOAST CONTAINER -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="threadFeedbackToast" class="toast align-items-center text-bg-dark border-0 rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="threadToastContent">
+                Action completed.
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
+function showThreadToast(msg) {
+    const toastEl = document.getElementById('threadFeedbackToast');
+    const msgEl = document.getElementById('threadToastContent');
+    if (toastEl && msgEl) {
+        msgEl.innerHTML = msg;
+        const bsToast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        bsToast.show();
+    }
+}
+
 function vote(complaintId, voteType) {
     fetch(`/vote/${complaintId}/${voteType}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
-        document.getElementById('upvote-count').textContent = data.upvotes;
-        document.getElementById('downvote-count').textContent = data.downvotes;
-        
-        // Update button styles
-        const upvoteBtn = document.getElementById('upvote-btn');
-        const downvoteBtn = document.getElementById('downvote-btn');
-        
-        if (voteType === 'upvote') {
-            upvoteBtn.classList.toggle('active');
-            downvoteBtn.classList.remove('active');
-        } else {
-            downvoteBtn.classList.toggle('active');
-            upvoteBtn.classList.remove('active');
-        }
+        const upEl = document.getElementById('thread-upvotes-count');
+        const downEl = document.getElementById('thread-downvotes-count');
+        if (upEl) upEl.textContent = data.upvotes;
+        if (downEl) downEl.textContent = data.downvotes;
+        showThreadToast(voteType === 'upvote' ? '❤️ Endorsement recorded!' : '👍 Feedback recorded.');
     })
-    .catch(error => console.error('Error:', error));
+    .catch(() => showThreadToast('Error recording vote.'));
+}
+
+function shareComplaint(complaintId, title) {
+    const url = window.location.href;
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            url: url
+        }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(url).then(() => {
+            showThreadToast('📋 Link copied to clipboard!');
+        });
+    }
 }
 
 function reportComplaint(complaintId) {
-    const reason = prompt('Please provide a reason for reporting this complaint:');
-    if (reason) {
-        fetch(`/report_complaint/${complaintId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                alert('Complaint reported successfully');
-            } else {
-                alert('Error reporting complaint');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
+    const reason = prompt('Please enter the reason for reporting this grievance:');
+    if (!reason) return;
+    fetch(`/report_complaint/${complaintId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showThreadToast(data.message || 'Report submitted for review.');
+    })
+    .catch(() => showThreadToast('Failed to submit report.'));
 }
-
-function zoomPhoto() {
-    const modal = document.getElementById('photo-modal');
-    const modalImg = document.getElementById('zoomed-photo');
-    const img = document.querySelector('.complaint-photo img');
-    
-    modal.style.display = 'block';
-    modalImg.src = img.src;
-}
-
-// Close modal when clicking the close button or outside the image
-document.querySelector('.close-modal').onclick = function() {
-    document.getElementById('photo-modal').style.display = 'none';
-}
-
-window.onclick = function(event) {
-    const modal = document.getElementById('photo-modal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// Close modal with Escape key
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        document.getElementById('photo-modal').style.display = 'none';
-    }
-});
 </script>
 {% endblock %}
-{% endblock %} 

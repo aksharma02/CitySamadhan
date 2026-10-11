@@ -1,190 +1,172 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - City Samadhan{% endblock %}
+{% block title %}My Profile & Case Files - City Samadhan{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="dashboard-header">
-        <h1>Welcome, {{ user.name }}</h1>
-        <p>Track and manage your complaints</p>
-    </div>
-
-    <div class="dashboard-stats">
-        <div class="stat-card">
-            <i class="fas fa-file-alt"></i>
-            <div class="stat-info">
-                <h3>Your Total Complaints</h3>
-                <p>{{ complaints|length }}</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <i class="fas fa-clock"></i>
-            <div class="stat-info">
-                <h3>Your Pending Complaints</h3>
-                <p>{{ complaints|selectattr('status', 'equalto', 'Reported')|list|length }}</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <i class="fas fa-check-circle"></i>
-            <div class="stat-info">
-                <h3>Your Resolved Complaints</h3>
-                <p>{{ complaints|selectattr('status', 'equalto', 'Resolved')|list|length }}</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <i class="fas fa-star"></i>
-            <div class="stat-info">
-                <h3>Your Total Upvotes</h3>
-                <p>{{ complaints|sum(attribute='upvotes') }}</p>
+<div class="x-profile-container">
+    
+    <!-- TOP STICKY HEADER -->
+    <div class="x-sticky-header">
+        <div class="d-flex align-items-center gap-3 px-3 py-2">
+            <a href="{{ url_for('all_complaints') }}" class="x-back-btn" title="Back to Feed">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h5 class="mb-0 fw-bold">{{ user.name }}</h5>
+                <span class="text-muted small">{{ complaints|length }} Grievance{% if complaints|length != 1 %}s{% endif %} filed</span>
             </div>
         </div>
     </div>
 
-    <div class="dashboard-actions">
-        <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Submit New Complaint
+    <!-- PROFILE BANNER & HEADER -->
+    <div class="x-profile-banner-wrap">
+        <div class="x-profile-banner"></div>
+        <div class="x-profile-details px-3 pb-3">
+            <div class="d-flex justify-content-between align-items-end">
+                <div class="x-profile-avatar-wrap">
+                    <div class="x-avatar x-avatar-xl shadow">
+                        {{ user.name[0]|upper if user and user.name else 'U' }}
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-outline-dark rounded-pill px-4 fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#quickPostModal">
+                        <i class="fa-solid fa-plus me-1"></i> File Grievance
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <h4 class="fw-bold mb-0">
+                    {{ user.name }}
+                    <i class="fa-solid fa-circle-check text-primary verified-tick ms-1" title="Verified Citizen"></i>
+                </h4>
+                <div class="text-muted">@{{ (user.city|lower|replace(' ', '_')) if user and user.city else 'citizen' }}_{{ user.id }}</div>
+            </div>
+
+            <p class="x-profile-bio mt-2 mb-2 text-secondary">
+                Active civic participant helping make {{ user.city }}, {{ user.state }} cleaner, safer, and better managed.
+            </p>
+
+            <div class="x-profile-meta-row d-flex flex-wrap gap-3 text-muted small">
+                <span><i class="fa-solid fa-location-dot me-1"></i> {{ user.city }}, {{ user.state }}</span>
+                <span><i class="fa-solid fa-envelope me-1"></i> {{ user.email }}</span>
+                <span><i class="fa-solid fa-phone me-1"></i> {{ user.phone }}</span>
+                <span><i class="fa-solid fa-calendar-days me-1"></i> Citizen Account</span>
+            </div>
+
+            <!-- CIVIC IMPACT COUNTERS -->
+            <div class="x-profile-stats-row mt-3 pt-3 border-top d-flex gap-4">
+                <div class="x-profile-stat">
+                    <span class="x-stat-num">{{ complaints|length }}</span>
+                    <span class="x-stat-label">Reported</span>
+                </div>
+                <div class="x-profile-stat">
+                    <span class="x-stat-num text-warning">{{ complaints|selectattr('status', 'equalto', 'Reported')|list|length }}</span>
+                    <span class="x-stat-label">Pending</span>
+                </div>
+                <div class="x-profile-stat">
+                    <span class="x-stat-num text-primary">{{ complaints|selectattr('status', 'equalto', 'In Process')|list|length }}</span>
+                    <span class="x-stat-label">In Process</span>
+                </div>
+                <div class="x-profile-stat">
+                    <span class="x-stat-num text-success">{{ complaints|selectattr('status', 'equalto', 'Resolved')|list|length }}</span>
+                    <span class="x-stat-label">Resolved</span>
+                </div>
+                <div class="x-profile-stat">
+                    <span class="x-stat-num text-danger">{{ complaints|sum(attribute='upvotes') }}</span>
+                    <span class="x-stat-label">Community Endorsements</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS: ALL / PENDING / RESOLVED -->
+    <div class="x-feed-tabs border-top">
+        <a href="#allMy" class="x-feed-tab active">
+            <span>All Grievances ({{ complaints|length }})</span>
         </a>
     </div>
 
-    <div class="complaints-section">
-        <div class="section-header">
-            <h2>Your Recent Complaints</h2>
-        </div>
-
+    <!-- USER'S COMPLAINT POSTS -->
+    <div class="x-complaints-stream">
         {% if complaints %}
-        <div class="complaints-feed">
             {% for complaint in complaints %}
-            <article class="tweet-card" data-complaint-id="{{ complaint.id }}">
-                <div class="tweet-avatar" aria-hidden="true">
-                    <i class="fas fa-user"></i>
-                </div>
-
-                <div class="tweet-body">
-                    <div class="tweet-header">
-                        <div class="tweet-author">
-                            <span class="tweet-name">{{ user.name }}</span>
-                            <span class="tweet-handle">#{{ complaint.id }}</span>
-                            <span class="tweet-dot">·</span>
-                            <span class="tweet-time">
-                                <i class="fas fa-calendar"></i> {{ complaint.timestamp.strftime('%Y-%m-%d') }}
-                            </span>
-                        </div>
-                        <span class="status-badge {{ complaint.status|lower|replace(' ', '_') }}">
-                            {{ complaint.status }}
-                        </span>
-                    </div>
-
-                    <div class="tweet-text">
-                        <h3 class="tweet-title">{{ complaint.title }}</h3>
-                        <p class="tweet-desc">{{ complaint.description[:160] }}{% if complaint.description|length > 160 %}...{% endif %}</p>
-                    </div>
-
-                    <div class="tweet-meta">
-                        <span>
-                            <i class="fas fa-building"></i>
-                            {{ complaint.department }}
-                        </span>
-                    </div>
-
-                    <div class="tweet-actions">
-                        <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="btn btn-secondary tweet-view">
-                            View Details
-                        </a>
-                        <div class="vote-buttons tweet-votes">
-                            <button onclick="vote({{ complaint.id }}, 'upvote')" class="btn btn-vote">
-                                <i class="fas fa-thumbs-up"></i> <span class="vote-count upvote-count">{{ complaint.upvotes }}</span>
-                            </button>
-                            <button onclick="vote({{ complaint.id }}, 'downvote')" class="btn btn-vote">
-                                <i class="fas fa-thumbs-down"></i> <span class="vote-count downvote-count">{{ complaint.downvotes }}</span>
-                            </button>
-                        </div>
+            <article class="x-tweet-card" data-complaint-id="{{ complaint.id }}">
+                <div class="x-tweet-left">
+                    <div class="x-avatar x-avatar-md">
+                        {{ user.name[0]|upper }}
                     </div>
                 </div>
 
-                <a class="tweet-thumb" href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" aria-label="Open complaint">
+                <div class="x-tweet-right">
+                    <div class="x-tweet-header">
+                        <div class="x-tweet-author-info">
+                            <span class="x-author-name">{{ user.name }}</span>
+                            <i class="fa-solid fa-circle-check text-primary verified-tick"></i>
+                            <span class="x-author-handle">#TICKET-{{ complaint.id }}</span>
+                            <span class="x-tweet-dot">·</span>
+                            <span class="x-tweet-time">{{ complaint.timestamp.strftime('%b %d, %Y') }}</span>
+                        </div>
+
+                        <div class="x-status-pill-wrap">
+                            {% set st = complaint.status|lower %}
+                            {% if 'resolved' in st %}
+                                <span class="x-status-pill x-status-resolved"><i class="fa-solid fa-circle-check me-1"></i>Resolved</span>
+                            {% elif 'process' in st or 'progress' in st %}
+                                <span class="x-status-pill x-status-progress"><i class="fa-solid fa-gear fa-spin me-1"></i>In Process</span>
+                            {% else %}
+                                <span class="x-status-pill x-status-reported"><i class="fa-solid fa-clock me-1"></i>Reported</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="x-tweet-chips-row mb-2">
+                        <span class="x-chip x-chip-dept"><i class="fa-solid fa-building-columns me-1"></i>{{ complaint.department }}</span>
+                        <span class="x-chip x-chip-loc"><i class="fa-solid fa-location-dot me-1"></i>{{ complaint.location }}</span>
+                    </div>
+
+                    <div class="x-tweet-content">
+                        <h5 class="x-tweet-title">{{ complaint.title }}</h5>
+                        <p class="x-tweet-text">{{ complaint.description }}</p>
+                    </div>
+
                     {% if complaint.photo %}
-                        <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Complaint photo thumbnail">
-                    {% else %}
-                        <div class="tweet-thumb-placeholder" aria-hidden="true">
-                            <i class="fas fa-image"></i>
-                        </div>
+                    <div class="x-tweet-media-wrap mt-2">
+                        <a href="{{ url_for('static', filename='uploads/' + complaint.photo) }}" target="_blank" class="x-media-anchor">
+                            <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Proof Photo" class="x-tweet-img">
+                        </a>
+                    </div>
                     {% endif %}
-                </a>
+
+                    <div class="x-tweet-action-bar">
+                        <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="x-action-btn x-action-reply">
+                            <div class="x-action-icon-wrap"><i class="fa-regular fa-comment"></i></div>
+                            <span class="x-action-count">{{ complaint.replies.count() if complaint.replies else 0 }}</span>
+                        </a>
+
+                        <button type="button" class="x-action-btn x-action-upvote text-danger" disabled>
+                            <div class="x-action-icon-wrap"><i class="fa-solid fa-heart"></i></div>
+                            <span class="x-action-count">{{ complaint.upvotes }}</span>
+                        </button>
+
+                        <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="x-view-case-btn ms-auto">
+                            <span>Track Investigation →</span>
+                        </a>
+                    </div>
+                </div>
             </article>
             {% endfor %}
-        </div>
         {% else %}
-        <div class="no-complaints">
-            <i class="fas fa-clipboard-list"></i>
-            <p>You haven't submitted any complaints yet.</p>
-            <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary">
-                Submit Your First Complaint
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <div class="notifications-section">
-        <div class="section-header">
-            <h2>Recent Notifications</h2>
-            <a href="{{ url_for('notifications') }}" class="view-all">View All</a>
-        </div>
-
-        {% if recent_notifications %}
-        <div class="notifications-list">
-            {% for notification in recent_notifications %}
-            <div class="notification-item {% if not notification.read %}unread{% endif %}">
-                <div class="notification-icon">
-                    {% if notification.type == 'status_update' %}
-                    <i class="fas fa-info-circle"></i>
-                    {% elif notification.type == 'response' %}
-                    <i class="fas fa-reply"></i>
-                    {% elif notification.type == 'thread_update' %}
-                    <i class="fas fa-comments"></i>
-                    {% else %}
-                    <i class="fas fa-bell"></i>
-                    {% endif %}
-                </div>
-                <div class="notification-content">
-                    <h4>{{ notification.title }}</h4>
-                    <p>{{ notification.message }}</p>
-                    <small>{{ notification.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
-                </div>
+            <div class="x-empty-state py-5 text-center">
+                <i class="fa-solid fa-clipboard-check text-muted fa-3x mb-3"></i>
+                <h5>You haven't filed any grievances yet</h5>
+                <p class="text-muted">Notice an issue in your street or city? Report it directly.</p>
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#quickPostModal">
+                    File First Issue
+                </button>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="no-notifications">
-            <i class="fas fa-bell-slash"></i>
-            <p>No notifications yet</p>
-        </div>
         {% endif %}
     </div>
+
 </div>
-
-{% block scripts %}
-<script>
-function vote(complaintId, voteType) {
-    fetch(`/vote/${complaintId}/${voteType}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Update the vote counts on the page
-        const complaintCard = document.querySelector(`[data-complaint-id="${complaintId}"]`);
-        if (!complaintCard) return;
-
-        const up = complaintCard.querySelector('.upvote-count');
-        const down = complaintCard.querySelector('.downvote-count');
-        if (up) up.textContent = data.upvotes;
-        if (down) down.textContent = data.downvotes;
-    })
-    .catch(error => console.error('Error:', error));
-}
-</script>
-{% endblock %}
 {% endblock %}

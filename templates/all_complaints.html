@@ -1,22 +1,129 @@
 {% extends "base.html" %}
 
-{% block title %}All Complaints - City Samadhan{% endblock %}
+{% block title %}Civic Feed - City Samadhan{% endblock %}
 
 {% block content %}
-<div class="all-complaints-container">
-    <div class="section-header">
-        <h1>All Complaints</h1>
-        <p>View and interact with complaints from all users</p>
+<div class="x-feed-container">
+    
+    <!-- TOP STICKY FEED HEADER -->
+    <div class="x-sticky-header">
+        <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-2">
+            <div>
+                <h4 class="x-header-title mb-0">Civic Feed</h4>
+                <div class="x-header-sub">
+                    <span class="x-live-dot"></span> 
+                    <strong>{{ total_count }}</strong> registered grievances across India
+                    {% if selected_city %} · <span class="text-primary fw-medium">{{ selected_city }}</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-light rounded-pill border x-filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false" aria-controls="filterSection">
+                    <i class="fa-solid fa-sliders me-1"></i> Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- TABS: FOR YOU / MY CITY / TRENDING -->
+        <div class="x-feed-tabs">
+            <a href="{{ url_for('all_complaints', tab='all') }}" class="x-feed-tab {% if feed_tab == 'all' or not feed_tab %}active{% endif %}">
+                <span>All India</span>
+            </a>
+            <a href="{{ url_for('all_complaints', tab='my_city') }}" class="x-feed-tab {% if feed_tab == 'my_city' %}active{% endif %}">
+                <span>My City ({{ current_user.city if current_user and current_user.city else 'Local' }})</span>
+            </a>
+            <a href="{{ url_for('all_complaints', tab='trending', sort='most_upvoted') }}" class="x-feed-tab {% if feed_tab == 'trending' %}active{% endif %}">
+                <span>🔥 Escalated / Urgent</span>
+            </a>
+        </div>
     </div>
 
-    <div class="filters-section">
-        <form method="GET" class="filter-form">
-            <div class="form-group">
-                <label for="state">
-                    <i class="fas fa-map"></i>
-                    State
-                </label>
-                <select id="state" name="state" onchange="updateCities()">
+    <!-- IN-FEED COMPOSER ("What civic issue did you spot?") -->
+    <div class="x-feed-composer">
+        <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data" id="feedComposerForm">
+            <input type="hidden" name="from_feed" value="1">
+            <div class="d-flex gap-3">
+                <div class="x-avatar x-avatar-md flex-shrink-0">
+                    {{ current_user.name[0]|upper if current_user and current_user.name else 'U' }}
+                </div>
+                <div class="flex-grow-1">
+                    <input type="text" name="title" class="x-composer-title-input" placeholder="Issue Headline (e.g., Pothole cluster outside Metro Pillar #42)" required>
+                    <textarea name="description" class="x-composer-desc-input" rows="2" placeholder="What civic issue did you spot? Describe location, risk level, or department involved..." required></textarea>
+                    
+                    <!-- Location and Department row -->
+                    <div class="x-composer-meta-grid mt-2 pt-2 border-top">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <select name="department" class="form-select form-select-sm x-form-select" required>
+                                    <option value="">Department</option>
+                                    {% for dept in all_departments %}
+                                    <option value="{{ dept }}">{{ dept }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="state" id="feedStateSelect" class="form-select form-select-sm x-form-select" required onchange="handleFeedStateChange()">
+                                    <option value="">State</option>
+                                    {% for s in states %}
+                                    <option value="{{ s }}" {% if current_user and current_user.state == s %}selected{% endif %}>{{ s }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="city" id="feedCitySelect" class="form-select form-select-sm x-form-select" required>
+                                    <option value="{{ current_user.city if current_user else '' }}">{{ current_user.city if current_user else 'Select City' }}</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-0"><i class="fa-solid fa-location-dot text-danger"></i></span>
+                                    <input type="text" name="location" id="feedLocationInput" class="form-control x-form-input" placeholder="Exact Landmark, Ward, Sector, or Street" required>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="autoDetectLocation('feedLocationInput')">
+                                        <i class="fa-solid fa-crosshairs me-1"></i> Auto GPS
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo preview thumbnail -->
+                    <div id="feedPhotoPreviewBox" class="x-media-preview-box d-none mt-2">
+                        <img id="feedPreviewImg" src="" alt="Proof Preview">
+                        <button type="button" class="btn btn-sm btn-dark x-media-remove" onclick="removeFeedPhoto()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <!-- Composer Toolbar -->
+                    <div class="x-composer-toolbar mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-1">
+                            <label for="feedPhotoInput" class="x-tool-btn" title="Upload Photo Proof">
+                                <i class="fa-regular fa-image"></i>
+                            </label>
+                            <input type="file" name="photo" id="feedPhotoInput" class="d-none" accept="image/*" onchange="previewFeedPhoto(event)">
+                            
+                            <button type="button" class="x-tool-btn" title="Detect GPS Location" onclick="autoDetectLocation('feedLocationInput')">
+                                <i class="fa-solid fa-location-crosshairs"></i>
+                            </button>
+                            <span class="x-photo-label-text ms-2 d-none d-sm-inline text-muted small">Attach photo evidence for official escalation</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold x-post-submit-btn">
+                            Post Grievance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- COLLAPSIBLE FILTER SECTION -->
+    <div class="collapse {% if selected_state or selected_city or selected_department or selected_status or search_query %}show{% endif %} px-3 py-3 x-filters-wrapper border-bottom" id="filterSection">
+        <form method="GET" action="{{ url_for('all_complaints') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="tab" value="{{ feed_tab }}">
+            {% if search_query %}
+            <input type="hidden" name="q" value="{{ search_query }}">
+            {% endif %}
+
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">State</label>
+                <select id="stateFilter" name="state" class="form-select form-select-sm" onchange="updateFilterCities()">
                     <option value="">All States</option>
                     {% for state in states %}
                     <option value="{{ state }}" {% if state == selected_state %}selected{% endif %}>{{ state }}</option>
@@ -24,22 +131,19 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="city">
-                    <i class="fas fa-city"></i>
-                    City
-                </label>
-                <select id="city" name="city">
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">City</label>
+                <select id="cityFilter" name="city" class="form-select form-select-sm">
                     <option value="">All Cities</option>
+                    {% if selected_city %}
+                    <option value="{{ selected_city }}" selected>{{ selected_city }}</option>
+                    {% endif %}
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="department">
-                    <i class="fas fa-building"></i>
-                    Department
-                </label>
-                <select id="department" name="department">
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Department</label>
+                <select id="departmentFilter" name="department" class="form-select form-select-sm">
                     <option value="">All Departments</option>
                     {% for dept in departments %}
                     <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
@@ -47,176 +151,351 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="status">
-                    <i class="fas fa-info-circle"></i>
-                    Status
-                </label>
-                <select id="status" name="status">
-                    <option value="">All Status</option>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Status</label>
+                <select id="statusFilter" name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
                     <option value="Reported" {% if 'Reported' == selected_status %}selected{% endif %}>Reported</option>
-                    <option value="In Progress" {% if 'In Progress' == selected_status %}selected{% endif %}>In Progress</option>
+                    <option value="In Process" {% if 'In Process' == selected_status %}selected{% endif %}>In Process</option>
                     <option value="Resolved" {% if 'Resolved' == selected_status %}selected{% endif %}>Resolved</option>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="sort">
-                    <i class="fas fa-sort"></i>
-                    Sort By
-                </label>
-                <select id="sort" name="sort">
-                    <option value="newest" {% if 'newest' == selected_sort %}selected{% endif %}>Newest First</option>
-                    <option value="oldest" {% if 'oldest' == selected_sort %}selected{% endif %}>Oldest First</option>
-                    <option value="most_upvoted" {% if 'most_upvoted' == selected_sort %}selected{% endif %}>Most Upvoted</option>
-                </select>
+            <div class="col-12 d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    {% if selected_state or selected_city or selected_department or selected_status or search_query %}
+                    <a href="{{ url_for('all_complaints') }}" class="btn btn-sm btn-link text-danger text-decoration-none p-0">
+                        <i class="fa-solid fa-rotate-left me-1"></i> Clear all filters
+                    </a>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4">
+                    <i class="fa-solid fa-filter me-1"></i> Apply Filters
+                </button>
             </div>
-
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter"></i>
-                Apply Filters
-            </button>
         </form>
     </div>
 
-    {% if complaints %}
-    <div class="complaints-feed">
-        {% for complaint in complaints %}
-        <article class="tweet-card" data-complaint-id="{{ complaint.id }}">
-            <div class="tweet-avatar" aria-hidden="true">
-                <i class="fas fa-user"></i>
-            </div>
-
-            <div class="tweet-body">
-                <div class="tweet-header">
-                    <div class="tweet-author">
-                        <span class="tweet-name">{{ complaint.author.name }}</span>
-                        <span class="tweet-handle">#{{ complaint.id }}</span>
-                        <span class="tweet-dot">·</span>
-                        <span class="tweet-time">
-                            <i class="fas fa-clock"></i> {{ complaint.timestamp.strftime('%Y-%m-%d %H:%M') }}
-                        </span>
-                    </div>
-                    <span class="status-badge {{ complaint.status|lower|replace(' ', '_') }}">
-                        {{ complaint.status }}
-                    </span>
-                </div>
-
-                <div class="tweet-text">
-                    <h3 class="tweet-title">{{ complaint.title }}</h3>
-                    <p class="tweet-desc">{{ complaint.description[:180] }}{% if complaint.description|length > 180 %}...{% endif %}</p>
-                </div>
-
-                <div class="tweet-meta">
-                    <span>
-                        <i class="fas fa-map-marker-alt"></i>
-                        {{ complaint.location }}, {{ complaint.city }}, {{ complaint.state }}
-                    </span>
-                    <span>
-                        <i class="fas fa-building"></i>
-                        {{ complaint.department }}
-                    </span>
-                </div>
-
-                <div class="tweet-actions">
-                    <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="btn btn-secondary tweet-view">
-                        View Details
-                    </a>
-                    <div class="vote-buttons tweet-votes">
-                        <button onclick="vote({{ complaint.id }}, 'upvote')" class="btn btn-vote">
-                            <i class="fas fa-thumbs-up"></i> <span class="vote-count upvote-count">{{ complaint.upvotes }}</span>
-                        </button>
-                        <button onclick="vote({{ complaint.id }}, 'downvote')" class="btn btn-vote">
-                            <i class="fas fa-thumbs-down"></i> <span class="vote-count downvote-count">{{ complaint.downvotes }}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <a class="tweet-thumb" href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" aria-label="Open complaint">
-                {% if complaint.photo %}
-                    <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Complaint photo thumbnail">
-                {% else %}
-                    <div class="tweet-thumb-placeholder" aria-hidden="true">
-                        <i class="fas fa-image"></i>
-                    </div>
-                {% endif %}
-            </a>
-        </article>
-        {% endfor %}
-    </div>
-
-    <div class="pagination">
-        {% if page > 1 %}
-        <a href="{{ url_for('all_complaints', page=page-1, state=selected_state, city=selected_city, department=selected_department, status=selected_status, sort=selected_sort) }}" class="btn btn-secondary">
-            <i class="fas fa-chevron-left"></i> Previous
-        </a>
-        {% endif %}
-        
-        <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
-        
-        {% if page < total_pages %}
-        <a href="{{ url_for('all_complaints', page=page+1, state=selected_state, city=selected_city, department=selected_department, status=selected_status, sort=selected_sort) }}" class="btn btn-secondary">
-            Next <i class="fas fa-chevron-right"></i>
-        </a>
-        {% endif %}
-    </div>
-    {% else %}
-    <div class="no-complaints">
-        <i class="fas fa-clipboard-list"></i>
-        <p>No complaints found matching your filters.</p>
+    <!-- SEARCH CRITERIA ALERT (IF ANY) -->
+    {% if search_query %}
+    <div class="x-search-results-banner px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
+        <span class="small">Search results for: <strong>"{{ search_query }}"</strong> ({{ total_count }} found)</span>
+        <a href="{{ url_for('all_complaints') }}" class="btn btn-sm btn-link text-decoration-none">Show all</a>
     </div>
     {% endif %}
+
+    <!-- CIVIC COMPLAINTS STREAM (TWEET-STYLE FEED) -->
+    <div class="x-complaints-stream">
+        {% if complaints %}
+            {% for complaint in complaints %}
+            <article class="x-tweet-card" data-complaint-id="{{ complaint.id }}">
+                
+                <!-- Left: Author Avatar & Thread Connector -->
+                <div class="x-tweet-left">
+                    <div class="x-avatar x-avatar-md">
+                        {{ complaint.author.name[0]|upper if complaint.author and complaint.author.name else 'C' }}
+                    </div>
+                    {% if complaint.thread_count and complaint.thread_count > 0 %}
+                    <div class="x-thread-line" title="Part of a civic thread"></div>
+                    {% endif %}
+                </div>
+
+                <!-- Right: Tweet Body & Interactive Elements -->
+                <div class="x-tweet-right">
+                    
+                    <!-- Tweet Header -->
+                    <div class="x-tweet-header">
+                        <div class="x-tweet-author-info">
+                            <span class="x-author-name">{{ complaint.author.name if complaint.author else 'Verified Citizen' }}</span>
+                            <i class="fa-solid fa-circle-check text-primary verified-tick" title="Verified Citizen"></i>
+                            <span class="x-author-handle">#TICKET-{{ complaint.id }}</span>
+                            <span class="x-tweet-dot">·</span>
+                            <span class="x-tweet-time" title="{{ complaint.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                {{ complaint.timestamp.strftime('%b %d') }}
+                            </span>
+                        </div>
+
+                        <!-- Status Badge Pill -->
+                        <div class="x-status-pill-wrap">
+                            {% set st = complaint.status|lower %}
+                            {% if 'resolved' in st %}
+                                <span class="x-status-pill x-status-resolved"><i class="fa-solid fa-circle-check me-1"></i>Resolved</span>
+                            {% elif 'process' in st or 'progress' in st %}
+                                <span class="x-status-pill x-status-progress"><i class="fa-solid fa-gear fa-spin me-1"></i>In Process</span>
+                            {% else %}
+                                <span class="x-status-pill x-status-reported"><i class="fa-solid fa-clock me-1"></i>Reported</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Department & Location Badges Row -->
+                    <div class="x-tweet-chips-row mb-2">
+                        <span class="x-chip x-chip-dept">
+                            <i class="fa-solid fa-building-columns me-1"></i> {{ complaint.department }}
+                        </span>
+                        <span class="x-chip x-chip-loc">
+                            <i class="fa-solid fa-location-dot me-1"></i> {{ complaint.location }}, {{ complaint.city }}
+                        </span>
+                    </div>
+
+                    <!-- Complaint Title & Content -->
+                    <div class="x-tweet-content">
+                        <h5 class="x-tweet-title">{{ complaint.title }}</h5>
+                        <p class="x-tweet-text">{{ complaint.description }}</p>
+                    </div>
+
+                    <!-- Attached Photo Evidence (Edge-to-Edge with Lightbox zoom) -->
+                    {% if complaint.photo %}
+                    <div class="x-tweet-media-wrap mt-2">
+                        <a href="{{ url_for('static', filename='uploads/' + complaint.photo) }}" target="_blank" class="x-media-anchor" title="Click to view full photo">
+                            <img src="{{ url_for('static', filename='uploads/' + complaint.photo) }}" alt="Civic Issue Evidence" class="x-tweet-img" loading="lazy">
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <!-- X-STYLE ENGAGEMENT BAR -->
+                    <div class="x-tweet-action-bar">
+                        
+                        <!-- 1. Replies / Discussion -->
+                        <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="x-action-btn x-action-reply" title="View thread & replies">
+                            <div class="x-action-icon-wrap"><i class="fa-regular fa-comment"></i></div>
+                            <span class="x-action-count">{{ complaint.replies.count() if complaint.replies else (complaint.thread_count if complaint.thread_count else 0) }}</span>
+                        </a>
+
+                        <!-- 2. Repost / Escalate -->
+                        <button type="button" onclick="repostComplaint({{ complaint.id }})" class="x-action-btn x-action-repost" title="Repost to boost escalation">
+                            <div class="x-action-icon-wrap"><i class="fa-solid fa-retweet"></i></div>
+                            <span class="x-action-count" id="repost-count-{{ complaint.id }}">{{ complaint.thread_count if complaint.thread_count else 0 }}</span>
+                        </button>
+
+                        <!-- 3. Upvote / Endorse -->
+                        <button type="button" onclick="vote({{ complaint.id }}, 'upvote', this)" class="x-action-btn x-action-upvote" title="Endorse this grievance (5+ triggers govt email)">
+                            <div class="x-action-icon-wrap"><i class="fa-regular fa-heart"></i></div>
+                            <span class="x-action-count upvote-count">{{ complaint.upvotes }}</span>
+                        </button>
+
+                        <!-- 4. Downvote -->
+                        <button type="button" onclick="vote({{ complaint.id }}, 'downvote', this)" class="x-action-btn x-action-downvote" title="Flag or downvote">
+                            <div class="x-action-icon-wrap"><i class="fa-regular fa-thumbs-down"></i></div>
+                            <span class="x-action-count downvote-count">{{ complaint.downvotes }}</span>
+                        </button>
+
+                        <!-- 5. Share -->
+                        <button type="button" onclick="shareComplaint({{ complaint.id }}, '{{ complaint.title|replace('\'', '\\\'') }}')" class="x-action-btn x-action-share" title="Share issue link">
+                            <div class="x-action-icon-wrap"><i class="fa-regular fa-share-from-square"></i></div>
+                        </button>
+
+                        <!-- 6. View Case File link -->
+                        <a href="{{ url_for('view_complaint', complaint_id=complaint.id) }}" class="x-view-case-btn ms-auto" title="Open full official case file">
+                            <span>Case File</span>
+                            <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+            </article>
+            {% endfor %}
+
+            <!-- PAGINATION -->
+            <div class="x-pagination-wrapper py-4 text-center border-top">
+                <div class="d-inline-flex gap-2 align-items-center">
+                    {% if page > 1 %}
+                    <a href="{{ url_for('all_complaints', page=page-1, state=selected_state, city=selected_city, department=selected_department, status=selected_status, sort=selected_sort, q=search_query, tab=feed_tab) }}" class="btn btn-outline-secondary rounded-pill px-3">
+                        <i class="fa-solid fa-chevron-left me-1"></i> Newer
+                    </a>
+                    {% endif %}
+                    
+                    <span class="px-3 text-muted small fw-medium">Page {{ page }} of {{ total_pages }}</span>
+                    
+                    {% if page < total_pages %}
+                    <a href="{{ url_for('all_complaints', page=page+1, state=selected_state, city=selected_city, department=selected_department, status=selected_status, sort=selected_sort, q=search_query, tab=feed_tab) }}" class="btn btn-outline-secondary rounded-pill px-3">
+                        Older <i class="fa-solid fa-chevron-right ms-1"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+        {% else %}
+            <!-- EMPTY STATE -->
+            <div class="x-empty-state py-5 text-center">
+                <div class="x-empty-icon mb-3">
+                    <i class="fa-solid fa-magnifying-glass-location text-muted fa-3x"></i>
+                </div>
+                <h4 class="fw-bold">No grievances found</h4>
+                <p class="text-muted mb-3">There are no reported civic issues matching your current filters.</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('all_complaints') }}" class="btn btn-primary rounded-pill px-4">View All Issues</a>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#quickPostModal">Post First Issue</button>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
 </div>
 
+<!-- TOAST NOTIFICATION CONTAINER FOR LIVE FEED INTERACTIONS -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="liveFeedbackToast" class="toast align-items-center text-bg-dark border-0 rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMessageContent">
+                Action completed.
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-function updateCities() {
-    const stateSelect = document.getElementById('state');
-    const citySelect = document.getElementById('city');
-    const cities = {{ cities|tojson|safe }};
-    
+const ALL_CITIES_MAP = {{ cities|tojson|safe }};
+
+function showToast(msg) {
+    const toastEl = document.getElementById('liveFeedbackToast');
+    const msgEl = document.getElementById('toastMessageContent');
+    if (toastEl && msgEl) {
+        msgEl.innerHTML = msg;
+        const bsToast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        bsToast.show();
+    }
+}
+
+// Update cities in the filter section
+function updateFilterCities() {
+    const stateVal = document.getElementById('stateFilter').value;
+    const citySelect = document.getElementById('cityFilter');
     citySelect.innerHTML = '<option value="">All Cities</option>';
-    
-    if (stateSelect.value) {
-        const stateCities = cities[stateSelect.value] || [];
-        stateCities.forEach(city => {
-            const option = document.createElement('option');
-            option.value = city;
-            option.textContent = city;
-            citySelect.appendChild(option);
+    if (stateVal && ALL_CITIES_MAP[stateVal]) {
+        ALL_CITIES_MAP[stateVal].forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            citySelect.appendChild(opt);
         });
     }
 }
 
-// Initialize cities dropdown if state is selected
-document.addEventListener('DOMContentLoaded', function() {
-    const stateSelect = document.getElementById('state');
-    if (stateSelect.value) {
-        updateCities();
+// Update cities in the feed composer
+function handleFeedStateChange() {
+    const stateVal = document.getElementById('feedStateSelect').value;
+    const citySelect = document.getElementById('feedCitySelect');
+    citySelect.innerHTML = '<option value="">Select City</option>';
+    if (stateVal && ALL_CITIES_MAP[stateVal]) {
+        ALL_CITIES_MAP[stateVal].forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            citySelect.appendChild(opt);
+        });
+    }
+}
+
+// In-feed composer photo preview
+function previewFeedPhoto(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('feedPreviewImg').src = evt.target.result;
+            document.getElementById('feedPhotoPreviewBox').classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeFeedPhoto() {
+    document.getElementById('feedPhotoInput').value = '';
+    document.getElementById('feedPreviewImg').src = '';
+    document.getElementById('feedPhotoPreviewBox').classList.add('d-none');
+}
+
+// Live AJAX Voting with instant visual feedback
+function vote(complaintId, voteType, btnEl) {
+    fetch(`/vote/${complaintId}/${voteType}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const card = document.querySelector(`[data-complaint-id="${complaintId}"]`);
+        if (card) {
+            const upSpan = card.querySelector('.upvote-count');
+            const downSpan = card.querySelector('.downvote-count');
+            if (upSpan) upSpan.textContent = data.upvotes;
+            if (downSpan) downSpan.textContent = data.downvotes;
+
+            // Heart animation
+            if (btnEl && voteType === 'upvote') {
+                const icon = btnEl.querySelector('i');
+                if (icon) {
+                    icon.classList.add('fa-solid');
+                    icon.classList.remove('fa-regular');
+                    btnEl.classList.add('text-danger');
+                }
+            }
+        }
+        showToast(voteType === 'upvote' ? '❤️ Upvote recorded! Thanks for endorsing this issue.' : '👍 Downvote recorded.');
+    })
+    .catch(err => {
+        console.error('Error voting:', err);
+        showToast('Error recording vote. Please try again.');
+    });
+}
+
+// Live AJAX Repost
+function repostComplaint(complaintId) {
+    fetch(`/repost_complaint/${complaintId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.message) {
+            const countEl = document.getElementById(`repost-count-${complaintId}`);
+            if (countEl) {
+                const current = parseInt(countEl.textContent || '0', 10);
+                countEl.textContent = current + 1;
+            }
+            showToast('🔁 Grievance reposted! Your voice escalated this issue.');
+        } else {
+            showToast('Unable to repost at this time.');
+        }
+    })
+    .catch(err => {
+        console.error('Repost error:', err);
+        showToast('Unable to repost complaint.');
+    });
+}
+
+// Native Web Share or Copy Link
+function shareComplaint(complaintId, title) {
+    const url = `${window.location.origin}/complaint/${complaintId}`;
+    if (navigator.share) {
+        navigator.share({
+            title: `CitySamadhan Civic Issue: ${title}`,
+            text: `Check out this civic complaint on CitySamadhan: "${title}"`,
+            url: url
+        }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('📋 Link copied to clipboard!');
+        }).catch(() => {
+            prompt('Copy this link:', url);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // If state is pre-selected, populate cities in composer
+    const feedState = document.getElementById('feedStateSelect');
+    if (feedState && feedState.value) {
+        handleFeedStateChange();
+    }
+    const filterState = document.getElementById('stateFilter');
+    if (filterState && filterState.value) {
+        updateFilterCities();
     }
 });
 </script>
-
-{% block scripts %}
-<script>
-function vote(complaintId, voteType) {
-    fetch(`/vote/${complaintId}/${voteType}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const card = document.querySelector(`[data-complaint-id="${complaintId}"]`);
-        if (!card) return;
-        const up = card.querySelector('.upvote-count');
-        const down = card.querySelector('.downvote-count');
-        if (up) up.textContent = data.upvotes;
-        if (down) down.textContent = data.downvotes;
-    })
-    .catch(error => console.error('Error:', error));
-}
-</script>
 {% endblock %}
-{% endblock %} 

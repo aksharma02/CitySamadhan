@@ -1,465 +1,491 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}City Samadhan{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <title>{% block title %}City Samadhan - Civic Grievance Network{% endblock %}</title>
+    
+    <!-- Modern Typography & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <header>
-        <nav>
-            <a href="{{ url_for('home') }}" class="logo">
-                <i class="fas fa-city"></i>
-                City Samadhan
-            </a>
-            <div class="nav-links">
-                {% if session.get('logged_in') %}
-                    <a href="{{ url_for('dashboard') }}">
-                        <i class="fas fa-home"></i> Dashboard
+<body class="x-body">
+
+    {% if session.get('logged_in') %}
+    <!-- ==================== LOGGED-IN 3-COLUMN X/TWITTER LAYOUT ==================== -->
+    <div class="x-app-wrapper">
+        
+        <!-- LEFT SIDEBAR: Navigation Rail -->
+        <aside class="x-sidebar-left">
+            <div class="x-sidebar-top">
+                <!-- Brand / Logo -->
+                <a href="{{ url_for('all_complaints') }}" class="x-brand-logo" title="City Samadhan Home">
+                    <div class="x-logo-icon">
+                        <i class="fa-solid fa-landmark-dome"></i>
+                    </div>
+                    <span class="x-brand-text">CitySamadhan</span>
+                </a>
+
+                <!-- Navigation Menu -->
+                <nav class="x-nav-menu">
+                    <a href="{{ url_for('all_complaints') }}" class="x-nav-link {% if request.endpoint == 'all_complaints' and not request.args.get('tab') %}active{% endif %}">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
                     </a>
-                    <a href="{{ url_for('all_complaints') }}">
-                        <i class="fas fa-list"></i> All Complaints
+                    
+                    <a href="{{ url_for('all_complaints', tab='trending') }}" class="x-nav-link {% if request.args.get('tab') == 'trending' %}active{% endif %}">
+                        <i class="fa-solid fa-fire-flame-curved"></i>
+                        <span>Trending Issues</span>
                     </a>
-                    <a href="{{ url_for('submit_complaint') }}">
-                        <i class="fas fa-plus-circle"></i> Submit Complaint
+                    
+                    <a href="{{ url_for('notifications') }}" class="x-nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
+                        <div class="position-relative d-inline-block">
+                            <i class="fa-regular fa-bell"></i>
+                            {% if unread_notifications_count > 0 %}
+                            <span class="x-nav-badge">{{ unread_notifications_count }}</span>
+                            {% endif %}
+                        </div>
+                        <span>Notifications</span>
                     </a>
-                    <a href="{{ url_for('notifications') }}">
-                        <i class="fas fa-bell"></i> Notifications
-                        {% if unread_notifications_count > 0 %}
-                            <span class="notification-badge">{{ unread_notifications_count }}</span>
-                        {% endif %}
+
+                    <a href="{{ url_for('dashboard') }}" class="x-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>My Complaints</span>
                     </a>
-                    <a href="{{ url_for('logout') }}">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+
+                    <a href="{{ url_for('submit_complaint') }}" class="x-nav-link {% if request.endpoint == 'submit_complaint' %}active{% endif %}">
+                        <i class="fa-regular fa-pen-to-square"></i>
+                        <span>File Grievance</span>
                     </a>
-                {% else %}
-                    <a href="{{ url_for('login') }}">
-                        <i class="fas fa-sign-in-alt"></i> Login
+
+                    <a href="#quickHelplinesModal" data-bs-toggle="modal" class="x-nav-link">
+                        <i class="fa-solid fa-phone-volume"></i>
+                        <span>Helplines</span>
                     </a>
-                    <a href="{{ url_for('register') }}">
-                        <i class="fas fa-user-plus"></i> Register
-                    </a>
-                {% endif %}
+                </nav>
+
+                <!-- Primary CTA: Post Issue -->
+                <button type="button" class="x-post-primary-btn" data-bs-toggle="modal" data-bs-target="#quickPostModal">
+                    <i class="fa-solid fa-plus d-md-none"></i>
+                    <span class="d-none d-md-inline"><i class="fa-solid fa-feather-pointed me-2"></i>Post Issue</span>
+                </button>
             </div>
-        </nav>
+
+            <!-- User Profile Chip at Bottom -->
+            <div class="x-sidebar-bottom">
+                <div class="x-user-pill dropdown">
+                    <button class="x-user-pill-btn" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="x-avatar x-avatar-sm">
+                            {{ current_user.name[0]|upper if current_user and current_user.name else 'U' }}
+                        </div>
+                        <div class="x-user-pill-meta d-none d-xl-block">
+                            <div class="x-user-pill-name">
+                                {{ current_user.name if current_user else 'Citizen' }}
+                                <i class="fa-solid fa-circle-check text-primary verified-tick" title="Verified Citizen"></i>
+                            </div>
+                            <div class="x-user-pill-handle">@{{ (current_user.city|lower|replace(' ', '_')) if current_user and current_user.city else 'citizen' }}</div>
+                        </div>
+                        <i class="fa-solid fa-ellipsis x-user-pill-dots d-none d-xl-block"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end x-dropdown-menu shadow" aria-labelledby="userMenuDropdown">
+                        <li>
+                            <div class="px-3 py-2 border-bottom">
+                                <div class="fw-bold">{{ current_user.name if current_user else 'Citizen' }}</div>
+                                <small class="text-muted">{{ current_user.email if current_user else '' }}</small>
+                                <div class="badge bg-light text-dark mt-1">📍 {{ current_user.city if current_user else '' }}, {{ current_user.state if current_user else '' }}</div>
+                            </div>
+                        </li>
+                        <li><a class="dropdown-item py-2" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-list-check me-2"></i> My Case Files</a></li>
+                        <li><a class="dropdown-item py-2" href="{{ url_for('notifications') }}"><i class="fa-regular fa-bell me-2"></i> Notifications</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2 text-danger fw-semibold" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket me-2"></i> Log out</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER COLUMN: Main Feed / Active Page -->
+        <main class="x-main-col">
+    {% else %}
+    <!-- ==================== GUEST HEADER (LOGIN / REGISTER VIEWS) ==================== -->
+    <header class="x-guest-header">
+        <div class="container d-flex justify-content-between align-items-center py-3">
+            <a href="{{ url_for('login') }}" class="x-brand-logo text-decoration-none">
+                <div class="x-logo-icon">
+                    <i class="fa-solid fa-landmark-dome"></i>
+                </div>
+                <span class="x-brand-text">CitySamadhan</span>
+            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('login') }}" class="btn btn-outline-primary rounded-pill px-3 fw-medium">Sign In</a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary rounded-pill px-3 fw-medium">Join Community</a>
+            </div>
+        </div>
     </header>
 
-    <main class="container">
+    <main class="x-guest-main">
+    {% endif %}
+
+        <!-- Flash Message Alerts -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">
-                        <i class="fas fa-info-circle"></i> {{ message }}
-                    </div>
-                {% endfor %}
+                <div class="x-flash-container px-3 pt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category in ['success'] else 'danger' if category in ['danger', 'error'] else 'info' }} alert-dismissible fade show x-alert" role="alert">
+                            <i class="fa-solid fa-circle-info me-2"></i> {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
             {% endif %}
         {% endwith %}
 
+        <!-- Single Core Content Block -->
         {% block content %}{% endblock %}
-    </main>
 
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>About City Samadhan</h3>
-                    <p>Empowering citizens to make their cities better through efficient complaint management and resolution.</p>
+    {% if session.get('logged_in') %}
+        </main>
+
+        <!-- RIGHT SIDEBAR: Search, Trending & Helplines -->
+        <aside class="x-sidebar-right d-none d-lg-block">
+            {% block right_sidebar %}
+            <!-- Search Bar -->
+            <div class="x-search-box-sticky">
+                <form action="{{ url_for('all_complaints') }}" method="GET" class="x-search-form">
+                    <i class="fa-solid fa-magnifying-glass x-search-icon"></i>
+                    <input type="text" name="q" value="{{ request.args.get('q', '') }}" class="x-search-input" placeholder="Search civic issues, wards, tickets...">
+                    {% if request.args.get('q') %}
+                    <a href="{{ url_for('all_complaints') }}" class="x-search-clear"><i class="fa-solid fa-xmark"></i></a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Escalation & Govt Bridge Card -->
+            <div class="x-widget-card x-bridge-widget">
+                <div class="x-bridge-badge"><i class="fa-solid fa-shield-halved me-1"></i> Official Portal Link</div>
+                <h6 class="x-widget-title mb-1">Direct Municipal Dispatch</h6>
+                <p class="x-widget-desc mb-2">High-engagement issues get auto-forwarded to official department grievance officers with proof & GPS tracking.</p>
+                <div class="x-bridge-steps">
+                    <span><i class="fa-solid fa-check text-success"></i> Citizen Post</span>
+                    <i class="fa-solid fa-arrow-right text-muted mx-1"></i>
+                    <span><i class="fa-solid fa-users text-primary"></i> 5+ Upvotes</span>
+                    <i class="fa-solid fa-arrow-right text-muted mx-1"></i>
+                    <span><i class="fa-solid fa-envelope-circle-check text-warning"></i> Govt Dispatched</span>
                 </div>
-                <div class="footer-section">
-                    <h3>Quick Links</h3>
-                    <ul>
-                        <li><a href="{{ url_for('all_complaints') }}">Home</a></li>
-                        <li><a href="{{ url_for('login') }}">Login</a></li>
-                        <li><a href="{{ url_for('register') }}">Register</a></li>
-                    </ul>
+            </div>
+
+            <!-- Trending Civic Topics Widget -->
+            <div class="x-widget-card">
+                <div class="x-widget-header">
+                    <h5 class="x-widget-title">What's Happening in Your Area</h5>
+                    <i class="fa-solid fa-arrow-trend-up text-primary"></i>
                 </div>
-                <div class="footer-section">
-                    <h3>Connect With Us</h3>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                <div class="x-trend-list">
+                    <a href="{{ url_for('all_complaints', q='pothole') }}" class="x-trend-item">
+                        <div class="x-trend-category">Road Infrastructure · Trending</div>
+                        <div class="x-trend-hashtag">#PotholeWatch</div>
+                        <div class="x-trend-count">14 active community reports</div>
+                    </a>
+                    <a href="{{ url_for('all_complaints', q='street light') }}" class="x-trend-item">
+                        <div class="x-trend-category">Electricity Board · Urgent</div>
+                        <div class="x-trend-hashtag">#BrokenStreetlights</div>
+                        <div class="x-trend-count">8 safety hazard reports</div>
+                    </a>
+                    <a href="{{ url_for('all_complaints', q='water') }}" class="x-trend-item">
+                        <div class="x-trend-category">Water Supply & Jal Board</div>
+                        <div class="x-trend-hashtag">#WaterPipelineBurst</div>
+                        <div class="x-trend-count">7 reports this week</div>
+                    </a>
+                    <a href="{{ url_for('all_complaints', q='garbage') }}" class="x-trend-item">
+                        <div class="x-trend-category">Nagar Nigam · Sanitation</div>
+                        <div class="x-trend-hashtag">#GarbageFreeCity</div>
+                        <div class="x-trend-count">9 resolved cases</div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Emergency Helplines Widget -->
+            <div class="x-widget-card">
+                <div class="x-widget-header">
+                    <h5 class="x-widget-title">Instant Civic Helplines</h5>
+                    <span class="badge bg-danger">24x7</span>
+                </div>
+                <div class="x-helplines-list">
+                    <div class="x-helpline-row">
+                        <div class="x-helpline-meta">
+                            <span class="x-helpline-label"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Emergency Response</span>
+                            <span class="x-helpline-sub">Police / Fire / Medical</span>
+                        </div>
+                        <a href="tel:112" class="x-helpline-btn">112</a>
+                    </div>
+                    <div class="x-helpline-row">
+                        <div class="x-helpline-meta">
+                            <span class="x-helpline-label"><i class="fa-solid fa-bolt text-warning me-2"></i>Electricity Emergency</span>
+                            <span class="x-helpline-sub">Discom & Power Outages</span>
+                        </div>
+                        <a href="tel:1912" class="x-helpline-btn">1912</a>
+                    </div>
+                    <div class="x-helpline-row">
+                        <div class="x-helpline-meta">
+                            <span class="x-helpline-label"><i class="fa-solid fa-person-dress text-info me-2"></i>Women Helpline</span>
+                            <span class="x-helpline-sub">Safety & Assistance</span>
+                        </div>
+                        <a href="tel:1091" class="x-helpline-btn">1091</a>
                     </div>
                 </div>
             </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 City Samadhan. All rights reserved.</p>
+
+            <!-- Footer Micro-links -->
+            <div class="x-footer-links">
+                <a href="{{ url_for('terms') }}">Terms</a> · 
+                <a href="{{ url_for('privacy') }}">Privacy</a> · 
+                <a href="#quickHelplinesModal" data-bs-toggle="modal">Govt Directory</a> · 
+                <span>City Samadhan © 2026</span>
+            </div>
+            {% endblock %}
+        </aside>
+
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="x-mobile-bottom-nav d-md-none">
+        <a href="{{ url_for('all_complaints') }}" class="x-mobile-nav-item {% if request.endpoint == 'all_complaints' %}active{% endif %}">
+            <i class="fa-solid fa-house"></i>
+        </a>
+        <a href="{{ url_for('all_complaints', tab='trending') }}" class="x-mobile-nav-item">
+            <i class="fa-solid fa-fire-flame-curved"></i>
+        </a>
+        <button type="button" class="x-mobile-post-fab" data-bs-toggle="modal" data-bs-target="#quickPostModal">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+        <a href="{{ url_for('notifications') }}" class="x-mobile-nav-item {% if request.endpoint == 'notifications' %}active{% endif %}">
+            <i class="fa-regular fa-bell"></i>
+            {% if unread_notifications_count > 0 %}
+            <span class="x-mobile-badge">{{ unread_notifications_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="x-mobile-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+            <i class="fa-regular fa-user"></i>
+        </a>
+    </nav>
+
+    <!-- QUICK POST MODAL (X-Style Modal Composer) -->
+    <div class="modal fade x-modal" id="quickPostModal" tabindex="-1" aria-labelledby="quickPostModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content x-modal-content">
+                <div class="modal-header x-modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <span class="badge bg-primary-subtle text-primary fw-medium px-3 py-2 rounded-pill">New Civic Issue</span>
+                </div>
+                <div class="modal-body pt-2">
+                    <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data" id="quickModalForm">
+                        <input type="hidden" name="from_feed" value="1">
+                        
+                        <div class="d-flex gap-3">
+                            <div class="x-avatar x-avatar-md flex-shrink-0">
+                                {{ current_user.name[0]|upper if current_user and current_user.name else 'U' }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <input type="text" name="title" class="x-composer-title-input" placeholder="Issue Title (e.g., Pothole outside Main Market)" required>
+                                <textarea name="description" class="x-composer-desc-input" rows="3" placeholder="Describe what happened, hazard level, and exact landmark..." required></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Location & Department Meta Row -->
+                        <div class="row g-2 mt-2 pt-2 border-top">
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small mb-1"><i class="fa-solid fa-building me-1"></i>Department</label>
+                                <select name="department" class="form-select form-select-sm x-form-select" required>
+                                    <option value="">Select Department</option>
+                                    {% for dept in all_departments %}
+                                    <option value="{{ dept }}">{{ dept }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small mb-1"><i class="fa-solid fa-map-pin me-1"></i>State</label>
+                                <select name="state" id="modalStateSelect" class="form-select form-select-sm x-form-select" required onchange="handleModalStateChange()">
+                                    <option value="">Select State</option>
+                                    {% for s in indian_states %}
+                                    <option value="{{ s }}" {% if current_user and current_user.state == s %}selected{% endif %}>{{ s }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small mb-1"><i class="fa-solid fa-city me-1"></i>City</label>
+                                <select name="city" id="modalCitySelect" class="form-select form-select-sm x-form-select" required>
+                                    <option value="{{ current_user.city if current_user else '' }}">{{ current_user.city if current_user else 'Select City' }}</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white"><i class="fa-solid fa-location-dot text-danger"></i></span>
+                                    <input type="text" name="location" id="modalLocationInput" class="form-control" placeholder="Specific Address, Landmark, Ward or Street Name" required>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="autoDetectLocation('modalLocationInput')">
+                                        <i class="fa-solid fa-crosshairs me-1"></i> Use GPS
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Attachment Preview Box -->
+                        <div id="modalPhotoPreview" class="x-media-preview-box d-none mt-3">
+                            <img id="modalPreviewImg" src="" alt="Issue Preview">
+                            <button type="button" class="btn btn-sm btn-dark x-media-remove" onclick="removeModalPhoto()"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <!-- Modal Bottom Action Bar -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                            <div class="d-flex gap-2 align-items-center">
+                                <label for="modalPhotoUpload" class="btn btn-light rounded-circle text-primary x-tool-btn" title="Attach Photo Proof">
+                                    <i class="fa-solid fa-image"></i>
+                                </label>
+                                <input type="file" name="photo" id="modalPhotoUpload" class="d-none" accept="image/*" onchange="previewModalFile(event)">
+                                <small class="text-muted">Attach photo proof for faster verification</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold x-post-submit-btn">
+                                <i class="fa-solid fa-paper-plane me-2"></i>Post Issue
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HELPLINES MODAL -->
+    <div class="modal fade" id="quickHelplinesModal" tabindex="-1" aria-labelledby="quickHelplinesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="quickHelplinesLabel"><i class="fa-solid fa-phone-volume text-primary me-2"></i>Official Civic Emergency Directory</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <h6 class="mb-0 fw-bold">Emergency Operations Center (EOC)</h6>
+                                <small class="text-muted">All-in-one Police, Fire & Medical</small>
+                            </div>
+                            <a href="tel:112" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold">Call 112</a>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <h6 class="mb-0 fw-bold">Power Department / Discom Toll-Free</h6>
+                                <small class="text-muted">Power Outages & Fallen Cable Hazards</small>
+                            </div>
+                            <a href="tel:1912" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold text-dark">Call 1912</a>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <h6 class="mb-0 fw-bold">Fire & Rescue Services</h6>
+                                <small class="text-muted">Urban Fire Hazard Control</small>
+                            </div>
+                            <a href="tel:101" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Call 101</a>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <h6 class="mb-0 fw-bold">CPGRAMS National Portal</h6>
+                                <small class="text-muted">Centralised Public Grievance Redress System</small>
+                            </div>
+                            <a href="https://pgportal.gov.in" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">Visit Portal</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    </main>
+    <footer class="x-guest-footer py-4 border-top text-center text-muted small">
+        <div class="container">
+            <p class="mb-1">&copy; 2026 City Samadhan. Empowering citizens through transparent, real-time civic governance.</p>
+            <div>
+                <a href="{{ url_for('terms') }}" class="text-muted me-3">Terms</a>
+                <a href="{{ url_for('privacy') }}" class="text-muted">Privacy Policy</a>
             </div>
         </div>
     </footer>
+    {% endif %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Global helper for GPS auto-detection
+    function autoDetectLocation(targetInputId) {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+        const targetInput = document.getElementById(targetInputId);
+        if (targetInput) {
+            targetInput.value = "Fetching GPS coordinates...";
+        }
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(6);
+                const lon = position.coords.longitude.toFixed(6);
+                if (targetInput) {
+                    targetInput.value = `GPS: ${lat}, ${lon} (Auto-detected)`;
+                }
+            },
+            (error) => {
+                if (targetInput) {
+                    targetInput.value = "";
+                }
+                alert("Unable to retrieve your location: " + error.message);
+            }
+        );
+    }
+
+    // Modal photo preview helper
+    function previewModalFile(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('modalPreviewImg').src = e.target.result;
+                document.getElementById('modalPhotoPreview').classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function removeModalPhoto() {
+        document.getElementById('modalPhotoUpload').value = '';
+        document.getElementById('modalPreviewImg').src = '';
+        document.getElementById('modalPhotoPreview').classList.add('d-none');
+    }
+
+    function handleModalStateChange() {
+        const stateSelect = document.getElementById('modalStateSelect');
+        const citySelect = document.getElementById('modalCitySelect');
+        if (!stateSelect || !citySelect) return;
+        
+        citySelect.innerHTML = '<option value="">Loading cities...</option>';
+        fetch(`/get_cities/${encodeURIComponent(stateSelect.value)}`)
+            .then(res => res.json())
+            .then(cities => {
+                citySelect.innerHTML = '<option value="">Select City</option>';
+                cities.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    citySelect.appendChild(opt);
+                });
+            })
+            .catch(() => {
+                citySelect.innerHTML = '<option value="">Select City</option>';
+            });
+    }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-
-<style>
-:root[data-theme="light"] {
-    --primary-color: #2196f3;
-    --primary-dark: #1976d2;
-    --secondary-color: #f8f9fa;
-    --text-color: #2c3e50;
-    --text-light: #666;
-    --bg-color: #ffffff;
-    --border-color: #e9ecef;
-    --hover-color: #e3f2fd;
-    --shadow-color: rgba(0,0,0,0.1);
-    --gradient-start: #2196f3;
-    --gradient-end: #1976d2;
-}
-
-:root[data-theme="dark"] {
-    --primary-color: #64b5f6;
-    --primary-dark: #42a5f5;
-    --secondary-color: #2c3e50;
-    --text-color: #ecf0f1;
-    --text-light: #bdc3c7;
-    --bg-color: #1a1a1a;
-    --border-color: #2c3e50;
-    --hover-color: #2c3e50;
-    --shadow-color: rgba(0,0,0,0.3);
-    --gradient-start: #64b5f6;
-    --gradient-end: #42a5f5;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Poppins', sans-serif;
-}
-
-body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    transition: background-color 0.3s ease, color 0.3s ease;
-    line-height: 1.6;
-}
-
-.navbar {
-    background: var(--bg-color);
-    box-shadow: 0 2px 10px var(--shadow-color);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-    background-color: rgba(255, 255, 255, 0.95);
-}
-
-.logo-container {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    gap: 12px;
-    transition: transform 0.3s ease;
-}
-
-.logo-container:hover {
-    transform: translateY(-2px);
-}
-
-.logo {
-    width: 45px;
-    height: 45px;
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.2);
-}
-
-.logo:hover {
-    transform: rotate(5deg) scale(1.05);
-    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.3);
-}
-
-.logo-text {
-    color: white;
-    font-weight: 700;
-    font-size: 1.3em;
-    letter-spacing: 1px;
-}
-
-.brand-text {
-    color: var(--text-color);
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.nav-links {
-    display: flex;
-    gap: 1.5rem;
-    align-items: center;
-}
-
-.nav-link {
-    color: var(--text-color);
-    text-decoration: none;
-    padding: 0.7rem 1.2rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--secondary-color);
-    font-weight: 500;
-}
-
-.nav-link i {
-    font-size: 1.1em;
-}
-
-.nav-link:hover {
-    background: var(--hover-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--shadow-color);
-}
-
-.notifications-container {
-    position: relative;
-}
-
-.notifications-link {
-    position: relative;
-    padding: 0.7rem;
-    color: var(--text-color);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    border-radius: 8px;
-    background: var(--secondary-color);
-}
-
-.notifications-link:hover {
-    background: var(--hover-color);
-    transform: translateY(-2px);
-}
-
-.notification-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #ff4081;
-    color: white;
-    border-radius: 50%;
-    padding: 3px 6px;
-    font-size: 0.7em;
-    min-width: 18px;
-    text-align: center;
-    font-weight: 600;
-    box-shadow: 0 2px 5px rgba(255, 64, 129, 0.3);
-}
-
-.notifications-dropdown {
-    display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    width: 320px;
-    background: var(--bg-color);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px var(--shadow-color);
-    z-index: 1000;
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid var(--border-color);
-    margin-top: 10px;
-}
-
-.notifications-dropdown.show {
-    display: block;
-    animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.notifications-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--secondary-color);
-    border-radius: 12px 12px 0 0;
-}
-
-.notifications-header h3 {
-    margin: 0;
-    font-size: 1.1em;
-    color: var(--text-color);
-    font-weight: 600;
-}
-
-.view-all {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-size: 0.9em;
-    font-weight: 500;
-    transition: color 0.3s ease;
-}
-
-.view-all:hover {
-    color: var(--primary-dark);
-}
-
-.notification-item {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: flex-start;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.notification-item:hover {
-    background: var(--hover-color);
-    transform: translateX(5px);
-}
-
-.notification-item.unread {
-    background: var(--hover-color);
-}
-
-.notification-icon {
-    margin-right: 15px;
-    color: var(--primary-color);
-    font-size: 1.2em;
-}
-
-.notification-content {
-    flex: 1;
-}
-
-.notification-content h4 {
-    margin: 0 0 5px 0;
-    font-size: 0.95em;
-    color: var(--text-color);
-    font-weight: 600;
-}
-
-.notification-content p {
-    margin: 0 0 5px 0;
-    font-size: 0.85em;
-    color: var(--text-light);
-}
-
-.notification-content small {
-    color: var(--text-light);
-    font-size: 0.8em;
-}
-
-.theme-toggle {
-    background: var(--secondary-color);
-    border: none;
-    color: var(--text-color);
-    cursor: pointer;
-    padding: 0.7rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.theme-toggle:hover {
-    background: var(--hover-color);
-    transform: translateY(-2px);
-}
-
-.logout-btn {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    color: white !important;
-    text-decoration: none;
-    padding: 0.7rem 1.2rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
-    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.2);
-}
-
-.logout-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.3);
-}
-
-.alert {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.2);
-}
-
-.alert i {
-    font-size: 1.2em;
-}
-
-@media (max-width: 768px) {
-    .navbar {
-        flex-direction: column;
-        padding: 1rem;
-    }
-
-    .nav-brand {
-        margin-bottom: 1rem;
-    }
-
-    .nav-links {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-
-    .notifications-dropdown {
-        position: fixed;
-        top: auto;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        max-height: 80vh;
-        border-radius: 12px 12px 0 0;
-        margin: 0;
-    }
-
-    .nav-link span, .logout-btn span {
-        display: none;
-    }
-
-    .nav-link, .logout-btn {
-        padding: 0.7rem;
-    }
-}
-</style> 

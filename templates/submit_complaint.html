@@ -1,100 +1,133 @@
 {% extends "base.html" %}
 
-{% block title %}Submit Complaint - City Samadhan{% endblock %}
+{% block title %}File a Civic Grievance - City Samadhan{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i>Submit a Complaint</h4>
-        </div>
-        <div class="card-body">
-            <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="title" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="title" name="title" placeholder="Enter a brief title" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="4" placeholder="Describe the issue in detail" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="location" class="form-label">Location</label>
-                            <input type="text" class="form-control" id="location" name="location" placeholder="Enter specific location or landmark" required>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="state" class="form-label">State</label>
-                            <select class="form-select" id="state" name="state" required onchange="updateCities()">
-                                <option value="">Select State</option>
-                                {% for state in states %}
-                                <option value="{{ state }}">{{ state }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="city" class="form-label">City</label>
-                            <select class="form-select" id="city" name="city" required>
-                                <option value="">Select State First</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="department" class="form-label">Department</label>
-                            <select class="form-select" id="department" name="department" required>
-                                <option value="">Select Department</option>
-                                <option value="Water">Water Department</option>
-                                <option value="Electricity">Electricity Department</option>
-                                <option value="Roads">Roads Department</option>
-                                <option value="Sanitation">Sanitation Department</option>
-                                <option value="Public Health">Public Health Department</option>
-                                <option value="Education">Education Department</option>
-                                <option value="Transport">Transport Department</option>
-                                <option value="Police">Police Department</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="photo" class="form-label">Upload Photo</label>
-                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
-                            <div class="form-text">Upload a photo of the issue (optional)</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="text-center mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg px-5">
-                        <i class="fas fa-paper-plane me-2"></i>Submit Complaint
-                    </button>
-                </div>
-            </form>
+<div class="x-thread-container p-3">
+    
+    <div class="x-sticky-header mb-3 border-0">
+        <div class="d-flex align-items-center gap-3 py-2">
+            <a href="{{ url_for('all_complaints') }}" class="x-back-btn" title="Back to Feed">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h5 class="mb-0 fw-bold">File an Official Civic Grievance</h5>
+                <span class="text-muted small">Recorded in public ledger & routed to zonal municipal desks</span>
+            </div>
         </div>
     </div>
+
+    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data">
+            
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-secondary small">ISSUE HEADLINE</label>
+                <input type="text" name="title" class="form-control form-control-lg rounded-3 fs-6" placeholder="Brief headline (e.g. Open manhole on 5th Cross Road)" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-secondary small">DETAILED DESCRIPTION</label>
+                <textarea name="description" class="form-control rounded-3" rows="4" placeholder="Detail the problem, how long it has been unresolved, danger level, or previous complaints filed..." required></textarea>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">DEPARTMENT</label>
+                    <select name="department" class="form-select rounded-3" required>
+                        <option value="">Select Department</option>
+                        {% for dept in all_departments %}
+                        <option value="{{ dept }}">{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">STATE</label>
+                    <select name="state" id="pageStateSelect" class="form-select rounded-3" required onchange="handlePageStateChange()">
+                        <option value="">Select State</option>
+                        {% for s in states %}
+                        <option value="{{ s }}" {% if current_user and current_user.state == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">CITY</label>
+                    <select name="city" id="pageCitySelect" class="form-select rounded-3" required>
+                        <option value="{{ current_user.city if current_user else '' }}">{{ current_user.city if current_user else 'Select City' }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-secondary small">LOCATION / LANDMARK</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-location-dot text-danger"></i></span>
+                    <input type="text" name="location" id="pageLocationInput" class="form-control rounded-end-0" placeholder="Street, colony, ward, landmark or pin code" required>
+                    <button class="btn btn-outline-secondary" type="button" onclick="autoDetectLocation('pageLocationInput')">
+                        <i class="fa-solid fa-crosshairs me-1"></i> Detect GPS
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold text-secondary small">PHOTO EVIDENCE (OPTIONAL BUT RECOMMENDED)</label>
+                <input type="file" name="photo" id="pagePhotoInput" class="form-control rounded-3" accept="image/*" onchange="previewPagePhoto(event)">
+                <div class="form-text small">Attaching photos speeds up departmental response and community upvoting.</div>
+                
+                <div id="pagePhotoPreview" class="x-media-preview-box d-none mt-2">
+                    <img id="pagePreviewImg" src="" alt="Proof Preview" class="rounded-3 shadow-sm" style="max-height: 220px;">
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                <a href="{{ url_for('all_complaints') }}" class="btn btn-link text-muted text-decoration-none">Cancel</a>
+                <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold btn-lg fs-6">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Publish Grievance
+                </button>
+            </div>
+
+        </form>
+    </div>
+
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-function updateCities() {
-    const stateSelect = document.getElementById('state');
-    const citySelect = document.getElementById('city');
-    const selectedState = stateSelect.value;
-
-    // Clear existing options
-    citySelect.innerHTML = '<option value="">Select City</option>';
-
-    if (selectedState) {
-        // Make an AJAX request to get cities for the selected state
-        fetch(`/get_cities/${selectedState}`)
-            .then(response => response.json())
-            .then(cities => {
-                cities.forEach(city => {
-                    const option = document.createElement('option');
-                    option.value = city;
-                    option.textContent = city;
-                    citySelect.appendChild(option);
-                });
-            });
+function previewPagePhoto(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('pagePreviewImg').src = evt.target.result;
+            document.getElementById('pagePhotoPreview').classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
     }
 }
+
+function handlePageStateChange() {
+    const stateVal = document.getElementById('pageStateSelect').value;
+    const citySelect = document.getElementById('pageCitySelect');
+    if (!stateVal) return;
+    citySelect.innerHTML = '<option value="">Loading...</option>';
+    fetch(`/get_cities/${encodeURIComponent(stateVal)}`)
+        .then(res => res.json())
+        .then(cities => {
+            citySelect.innerHTML = '<option value="">Select City</option>';
+            cities.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                citySelect.appendChild(opt);
+            });
+        });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const s = document.getElementById('pageStateSelect');
+    if (s && s.value) {
+        handlePageStateChange();
+    }
+});
 </script>
-{% endblock %} 
+{% endblock %}
