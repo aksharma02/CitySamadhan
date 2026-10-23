@@ -265,8 +265,9 @@ http://127.0.0.1:5000
 ## 👨‍💻 Team
 
 - Amit Kumar
-- Akshita
-- Ansh Mittal
+- Chitresh Mathur
+- Dhrub Kanoujia
+- Dayanshu Sharma
 - Gaurav Jangid
 
 ---
