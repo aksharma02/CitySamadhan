@@ -11,9 +11,17 @@ import json
 import requests
 from werkzeug.utils import secure_filename
 from functools import wraps
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    if os.path.exists('.env'):
+        with open('.env', 'r', encoding='utf-8') as _env_file:
+            for _line in _env_file:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
 
 app = Flask(__name__, template_folder='templates')
 database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
